@@ -80,23 +80,72 @@ const DynamicFormGenerator = () => {
     setJsonSchema(value);
     try {
       const parsed = JSON.parse(value);
-      // Validate the schema structure
+
+      // Validate fields property
       if (!parsed.fields || !Array.isArray(parsed.fields)) {
-        throw new Error("Invalid schema: missing or invalid fields array");
+        throw new Error(
+          `Missing or invalid "fields". Example:\n"fields": [\n  {\n    "id": "name",\n    "type": "text",\n    "label": "Name",\n    "required": true\n  }\n]`
+        );
       }
-      if (!parsed.formTitle || typeof parsed.formTitle !== "string") {
-        parsed.formTitle = "New Form";
+
+      // Check if all entries in the `fields` array are valid objects
+      const invalidFields = parsed.fields.filter(
+        (field) =>
+          typeof field !== "object" || Array.isArray(field) || !field.id
+      );
+
+      if (invalidFields.length > 0) {
+        throw new Error(
+          `Invalid field detected:\n${JSON.stringify(
+            invalidFields[0],
+            null,
+            2
+          )}\nExample of a valid field:\n{\n  "id": "name",\n  "type": "text",\n  "label": "Name",\n  "required": true\n}`
+        );
       }
+
+      // Validate formDescription property
       if (
         !parsed.formDescription ||
         typeof parsed.formDescription !== "string"
       ) {
-        parsed.formDescription = "Please fill out this form";
+        throw new Error(
+          `Missing or invalid "formDescription". Example:\n"formDescription": "Please fill out this form to help us gather your feedback",`
+        );
       }
+
+      // Validate formTitle property
+      if (!parsed.formTitle || typeof parsed.formTitle !== "string") {
+        throw new Error(
+          `Missing or invalid "formTitle". Example:\n"formTitle": "Project Requirements Survey",`
+        );
+      }
+
+      // If all validations pass, update the parsed schema
       setParsedSchema(parsed);
       setJsonError("");
     } catch (e) {
-      setJsonError(e instanceof Error ? e.message : "Invalid JSON format");
+      if (e instanceof SyntaxError) {
+        setJsonError(
+          `Invalid JSON format. Please fix the syntax errors.\nExample:\n{
+    "formTitle": "Project Requirements Survey",
+    "formDescription": "Please fill out this form to help us gather your feedback",
+    "fields": [
+      {
+        "id": "name",
+        "type": "text",
+        "label": "Name",
+        "required": true
+      }
+    ]
+  }`
+        );
+      } else {
+        // Show specific error messages for missing keys or invalid fields
+        setJsonError(e.message);
+      }
+
+      // Revert to the default schema
       setParsedSchema(defaultSchema);
     }
   };
@@ -229,7 +278,11 @@ const DynamicFormGenerator = () => {
               onChange={(e) => handleJsonChange(e.target.value)}
               placeholder="Paste your JSON schema here..."
             />
-            {jsonError && <p className="text-red-500 mt-2">{jsonError}</p>}
+            {jsonError && (
+              <p className="text-red-500 mt-2 whitespace-pre-line">
+                {jsonError}
+              </p>
+            )}
           </div>
 
           {/* Form Preview */}
@@ -241,17 +294,12 @@ const DynamicFormGenerator = () => {
               </p>
 
               {parsedSchema.fields.map((field) => (
-                <div key={field.id} className="space-y-2">
-                  <label
-                    htmlFor={field.id}
-                    className="block text-sm font-medium text-gray-700"
-                  >
+                <div key={field.id} className="space-y-1">
+                  <label htmlFor={field.id} className="block font-medium">
                     {field.label}
                     {field.required && <span className="text-red-500">*</span>}
                   </label>
-
                   {renderField(field)}
-
                   {formErrors[field.id] && (
                     <p className="text-red-500 text-sm">
                       {formErrors[field.id]}
@@ -260,36 +308,17 @@ const DynamicFormGenerator = () => {
                 </div>
               ))}
 
-              {parsedSchema.fields.length > 0 && (
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`w-full py-2 px-4 rounded-md text-white ${
-                    isSubmitting
-                      ? "bg-gray-400"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </button>
-              )}
-
+              <button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Submitting..." : "Submit"}
+              </button>
               {submitSuccess && (
-                <div className="mt-4 p-4 bg-green-100 text-green-700 rounded-md">
-                  <p>Form submitted successfully!</p>
-                  <button
-                    onClick={() => setSubmitSuccess(false)}
-                    className="mt-2 text-sm text-green-700 underline hover:text-green-900"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
-
-              {!parsedSchema.fields.length && (
-                <div className="text-center text-gray-500">
-                  Enter a valid JSON schema to preview the form
-                </div>
+                <p className="text-green-500 text-sm mt-2">
+                  Form submitted successfully!
+                </p>
               )}
             </form>
           </div>
