@@ -90,7 +90,7 @@ const DynamicFormGenerator = () => {
 
       // Check if all entries in the `fields` array are valid objects
       const invalidFields = parsed.fields.filter(
-        (field) =>
+        (field: FormField) =>
           typeof field !== "object" || Array.isArray(field) || !field.id
       );
 
@@ -142,7 +142,11 @@ const DynamicFormGenerator = () => {
         );
       } else {
         // Show specific error messages for missing keys or invalid fields
-        setJsonError(e.message);
+        if (e instanceof Error) {
+          setJsonError(e.message);
+        } else {
+          setJsonError("An unknown error occurred");
+        }
       }
 
       // Revert to the default schema
